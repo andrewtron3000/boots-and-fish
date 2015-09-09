@@ -1,1 +1,460 @@
-Hello world!
+<!doctype html> 
+<html lang="en"> 
+<head> 
+	<meta charset="UTF-8" />
+	<title>Phaser - Making your first game, part 1</title>
+	<script type="text/javascript" src="phaser.min.js"></script>
+	<style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<script type="text/javascript">
+
+/* Simple JavaScript Inheritance
+ * By John Resig http://ejohn.org/
+ * MIT Licensed.
+ */
+// Inspired by base2 and Prototype
+(function(){
+  var initializing = false, fnTest = /xyz/.test(function(){xyz;}) ? /\b_super\b/ : /.*/;
+ 
+  // The base Class implementation (does nothing)
+  this.Class = function(){};
+ 
+  // Create a new Class that inherits from this class
+  Class.extend = function(prop) {
+    var _super = this.prototype;
+   
+    // Instantiate a base class (but only create the instance,
+    // don't run the init constructor)
+    initializing = true;
+    var prototype = new this();
+    initializing = false;
+   
+    // Copy the properties over onto the new prototype
+    for (var name in prop) {
+      // Check if we're overwriting an existing function
+      prototype[name] = typeof prop[name] == "function" &&
+        typeof _super[name] == "function" && fnTest.test(prop[name]) ?
+        (function(name, fn){
+          return function() {
+            var tmp = this._super;
+           
+            // Add a new ._super() method that is the same method
+            // but on the super-class
+            this._super = _super[name];
+           
+            // The method only need to be bound temporarily, so we
+            // remove it when we're done executing
+            var ret = fn.apply(this, arguments);        
+            this._super = tmp;
+           
+            return ret;
+          };
+        })(name, prop[name]) :
+        prop[name];
+    }
+   
+    // The dummy class constructor
+    function Class() {
+      // All construction is actually done in the init method
+      if ( !initializing && this.init )
+        this.init.apply(this, arguments);
+    }
+   
+    // Populate our constructed prototype object
+    Class.prototype = prototype;
+   
+    // Enforce the constructor to be what we expect
+    Class.prototype.constructor = Class;
+ 
+    // And make this class extendable
+    Class.extend = arguments.callee;
+   
+    return Class;
+  };
+})();
+
+var game = new Phaser.Game(800, 600, Phaser.AUTO, '', { preload: preload, create: create, update: update });
+
+//
+//  Class hierarchy
+//
+var Character = Class.extend({
+	init: function(name) {
+		this.name = name;
+	},
+	initSprite: function(x, y) {
+		this.sprite = game.add.sprite(x, y, this.name);
+	},
+	getSprite: function() {
+		return this.sprite;
+	},
+	collided: function(dead) {
+		console.log("COLLISION with " + this.name + ", dead is " + dead);
+	},
+	setXVelocity: function(v) {
+		this.sprite.body.velocity.x = v;
+	},
+	getXVelocity: function() {
+		return this.sprite.body.velocity.x;
+	},
+	setYVelocity: function(v) {
+		this.sprite.body.velocity.y = v;
+	},
+	getYVelocity: function() {
+		return this.sprite.body.velocity.y;
+	},
+});
+
+var Diver = Character.extend({
+	init: function(name) {
+		this._super(name);
+
+		this.speed = 10;
+		this.max_dive_speed = 40;
+		
+		this.gravity = -30;
+
+		this.p_x = 1.0;
+		this.p_y = 5.0;
+
+		this.score = 0;
+	},
+	initSprite: function(x, y) {
+		this._super(x, y);
+		this.breath_sprite = game.add.sprite(x, y - 25, 'air_bubbles');
+		this.breath_animation = this.breath_sprite.animations.add('breathing');
+		this.breath_sprite.animations.play('breathing', 2, true);
+	    game.physics.arcade.enable(this.sprite);
+    	this.sprite.body.gravity.y = this.gravity;
+
+	},
+	collidedWithBoot: function(dead) {
+		this.score = this.score + 5;
+		console.log("SCORE = " + this.score);
+	},
+	collidedWithFish: function(fish) {
+		this.score = this.score + fish.getPoints();
+		console.log("SCORE = " + this.score);
+	},
+	getScore: function() {
+		return this.score;
+	},
+	clearScore: function() {
+		this.score = 0;
+	},
+	redraw: function(f) {
+		this.breath_sprite.visible = f;
+		this.breath_sprite.position.x = this.sprite.position.x;
+		this.breath_sprite.position.y = this.sprite.position.y - 25;
+	},
+});
+
+var Boat = Character.extend({
+	init: function(name) {
+		this._super(name);
+		this.speed = 100;
+	},
+});
+
+var Boot = Character.extend({
+	init: function(name) {
+		this._super(name);
+		this.speed = Math.floor(Math.random() * 30 + 10);
+		this.initSprite( 
+			Math.floor((Math.random() * 600) + 50),
+			5);
+		game.physics.arcade.enable(this.sprite);
+		this.sprite.body.velocity.y = this.speed;
+	},
+	collided: function(dead) {
+		this.sprite.destroy();
+	},
+});
+
+var Fish = Character.extend({
+	init: function(name) {
+		this._super(name);
+		this.speed = Math.floor(Math.random() * 100 + 40);
+		this.initSprite( 
+			0,
+			Math.floor(Math.random() * 400) + 60);
+		game.physics.arcade.enable(this.sprite);
+		this.sprite.body.velocity.x = this.speed;
+
+	},
+	collided: function(dead) {
+		this.sprite.destroy();
+	},
+	getPoints: function() {
+		return this.speed;
+	}
+});
+
+var Seaweed = Class.extend({
+	init: function() {
+		this.seaweed = game.add.sprite(Math.floor(Math.random() * 700 + 50), game.world.height - 160, 'seaweed');
+		this.seaweed.animations.add('seaweed');
+		this.seaweed.animations.play('seaweed', Math.floor(Math.random() * 8 + 1), true);
+	},
+});
+
+var Display = Class.extend({
+	init: function() {
+		this.style = { font: "bold 28px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "middle" };	
+    	this.text = game.add.text(0, 0, "adfdsf", this.style);
+	},
+
+	redraw: function(s) {
+		this.text.setText(s);
+	},
+
+	gameOver: function(s) {
+		this.game_over_text = game.add.text(350, 300, "Game Over! Score = " + s, this.style);
+	}
+});
+
+function preload() {
+
+    game.load.image('water', 'assets/water.png');
+    game.load.image('air', 'assets/air.png');
+    game.load.image('ground', 'assets/platform.png');
+    game.load.image('boat', 'assets/boat.png');
+    game.load.image('diver_floating', 'assets/diver_floating.png');
+    game.load.image('boot', 'assets/boot.png');
+    game.load.image('fish', 'assets/fish.png');
+
+    game.load.spritesheet('air_bubbles', 'assets/breathing.png', 25, 25, 4);
+    game.load.spritesheet('seaweed', 'assets/seaweed.png', 20, 100, 4);
+
+    game.load.audio('bubbles', 'assets/audio/bubbles.mp3');
+    game.load.audio('bubbles_2', 'assets/audio/bubbles_2.mp3');
+    game.load.audio('earned', 'assets/audio/earned.mp3');
+
+    game.load.audio('theme_song', 'assets/audio/theme_song.mp3');
+
+}
+
+var bubbles;
+
+var boat_speed = 100;
+
+var boat_1 = new Boat('boat');
+var diver_1 = new Diver('diver_floating');
+
+var boots = [ ];
+var fishes = [ ];
+var seaweeds = [ ];
+var scoreboard;
+
+var start_time;
+var game_duration_sec = 60;
+
+function create() {
+
+	start_time = game.time.now;
+
+	earned = game.add.audio('earned');
+	earned.addMarker('earnedmarker', 0.0, 0.0);
+
+	song = game.add.audio('theme_song');
+	song.addMarker('songmarker', 0.0, 0.0);
+	song.play('songmarker', 1, 1.0, true);
+
+	//	Here we set-up our audio sprite
+	bubbles = game.add.audio('bubbles');
+	bubbles.addMarker('bubblemarker', 1.0, 1.0);
+	bubbles.onLoop.add(hasLooped, this);
+
+	bubbles_2 = game.add.audio('bubbles_2');
+	bubbles_2.addMarker('bubblemarker_2', 2.0, 1.0);
+	bubbles_2.onLoop.add(hasLooped, this);
+
+	//  We're going to be using physics, so enable the Arcade Physics system
+    game.physics.startSystem(Phaser.Physics.ARCADE);
+
+    // A simple air sprite for our game
+    game.add.sprite(0, 0, 'air');
+    //  A simple underwater for our game
+    game.add.sprite(0, 50, 'water');
+
+    for (var i = 0; i < Math.floor(Math.random() * 10 + 10); i++) {
+    	seaweeds.push( new Seaweed() );
+    };
+
+    // A simple boat
+    boat_1.initSprite(0, 25);
+    // and diver
+    diver_1.initSprite(0, 300);
+
+	boots.push( new Boot('boot') );
+	boots.push( new Boot('boot') );
+	boots.push( new Boot('boot') );
+
+	fishes.push( new Fish('fish') );
+
+	// add a graphics context
+	graphics = game.add.graphics(0, 0);
+
+    //  The platforms group contains the ground and the 2 ledges we can jump on
+    platforms = game.add.group();
+
+    //  We will enable physics for any object that is created in this group
+    platforms.enableBody = true;
+
+    // Here we create the ground.
+    var ground = platforms.create(0, game.world.height - 64, 'ground');
+
+    //  Scale it to fit the width of the game (the original sprite is 400x32 in size)
+    ground.scale.setTo(2, 2);
+
+    //  This stops it from falling away when you jump on it
+    ground.body.immovable = true;
+
+    //  We need to enable physics on the boat
+    game.physics.arcade.enable(boat_1.getSprite());
+
+	scoreboard = new Display();
+}
+
+function update() {
+
+    // Compute the error between the diver and the boat.
+    error_x = boat_1.getSprite().body.position.x - diver_1.getSprite().body.position.x;
+    error_y = diver_1.getSprite().body.position.y - boat_1.getSprite().body.position.y - 10;
+
+	if (game.time.elapsedSince(start_time) > game_duration_sec * 1000)
+	{
+		scoreboard.gameOver(diver_1.getScore());
+		graphics.clear();
+	    if (error_y < 0)
+	    {
+	    	diver_1.setXVelocity( error_x * diver_1.p_x );
+    		diver_1.setYVelocity( - error_y * 1.0 );
+    		bubbles.stop()
+    		bubbles_2.stop()
+    		diver_1.redraw(false);
+    	}
+    	else
+    	{
+	    	diver_1.redraw(true);    		
+    	}
+		return;
+	}
+
+	//  Collide the player and the stars with the platforms
+    game.physics.arcade.collide(boat_1.getSprite(), platforms);
+    game.physics.arcade.collide(diver_1.getSprite(), platforms);
+
+    cursors = game.input.keyboard.createCursorKeys();
+
+    // Draw the air tube.
+	graphics.clear();
+
+	graphics.lineStyle(5, 0x808080);
+
+	graphics.moveTo(
+		boat_1.getSprite().body.position.x + 25, 
+		boat_1.getSprite().body.position.y + 25);
+
+	graphics.lineTo(
+		diver_1.getSprite().body.position.x + 12, 
+		diver_1.getSprite().body.position.y);
+
+
+    //  Reset the players velocity (movement)
+    boat_1.getSprite().body.velocity.x = 0;  		
+
+    diver_1.setXVelocity( error_x * diver_1.p_x );
+
+    if (error_y < 0)
+    {
+    	diver_1.setYVelocity( - error_y * 1.0 );
+    	bubbles.stop()
+    	bubbles_2.stop()
+    	diver_1.redraw(false);
+    }
+
+    if (error_y > 10) {
+		bubbles.play('bubblemarker', 1, 0.5, true, false);
+
+		diver_1.redraw(true);
+    }
+
+    if (cursors.left.isDown) {
+        //  Move to the left
+        boat_1.getSprite().body.velocity.x = -boat_speed;
+    }
+    else if (cursors.right.isDown) {
+        //  Move to the right
+        boat_1.getSprite().body.velocity.x = boat_speed;
+	}
+    else if (cursors.down.isDown && diver_1.getSprite().body.velocity.y < diver_1.max_dive_speed) {
+    	diver_1.setYVelocity( diver_1.getYVelocity() + diver_1.speed );
+    }
+
+    // Check for collisions.
+    for (var i = 0; i < boots.length; i++) {
+    	game.physics.arcade.collide(diver_1.getSprite(), boots[i].getSprite(), function () {
+    			earned.play('earnedmarker', 1, 1.0, false);
+    			boots[i].collided(true);
+    			diver_1.collidedWithBoot(false);
+    			boots.splice(i, 1);
+    			boots.push( new Boot('boot') ); },
+    		null, this);
+    	game.physics.arcade.collide(platforms, boots[i].getSprite(), function () {
+    			boots[i].collided();
+    			diver_1.clearScore();
+    			boots.splice(i, 1);
+    			boots.push( new Boot('boot') ); },
+    		null, this);
+    };
+
+    // Check for collisions.
+    for (var i = 0; i < fishes.length; i++) {
+    	if (fishes[i].getSprite().body.position.x > 800)
+    	{
+    		fishes[i].collided(true);
+    		fishes.splice(i, 1);
+    		fishes.push( new Fish('fish') );
+    	}
+    	else
+    	{
+	    	game.physics.arcade.collide(diver_1.getSprite(), fishes[i].getSprite(), function () {
+    				earned.play('earnedmarker', 1, 1.0, false);
+	    			fishes[i].collided(true);
+	    			diver_1.collidedWithFish(fishes[i]);
+	    			fishes.splice(i, 1);
+	    			fishes.push( new Fish('fish') ); },
+	    		null, this);    		
+    	}
+    };
+
+    scoreboard.redraw("Score: " + diver_1.getScore() + " Remaining Time: " + Math.floor((game_duration_sec * 1000 - game.time.elapsedSince(start_time))/1000));
+}
+
+function hasLooped(sound) {
+	var x = Math.random();
+	if (x > 0.5)
+	{
+		bubbles.stop();
+		bubbles_2.stop();
+		bubbles_2.play( 'bubblemarker_2', 1, 0.5, true, false);
+	}
+	else
+	{
+		bubbles.stop();
+		bubbles_2.stop();
+		bubbles.play('bubblemarker', 1, 0.5, true, false);		
+	}
+}
+
+</script>
+
+</body>
+</html>
