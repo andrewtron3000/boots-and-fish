@@ -5,18 +5,31 @@
     text-align:center;
     padding:5px;
 }
+#navspace {
+    background-color:white;
+    height:590px;
+    float:right;
+    padding:5px; 
+}
 #nav {
     line-height:30px;
     background-color:#eeeeee;
-    height:600px;
+    height:580px;
     width:300px;
-    float:left;
-    padding:5px; 
+    float:right;
+    padding:10px; 
 }
 #bootfish {
     width:600px;
     float:left;
     padding:10px; 
+}
+#fspace {
+    background-color:white;
+    color:white;
+    clear:both;
+    text-align:center;
+    padding:5px;     
 }
 #footer {
     background-color:black;
